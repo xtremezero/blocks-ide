@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50 text-slate-800">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Block-Lua | Visual Lua Block IDE</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Blockly Libraries -->
+  <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
+  <script src="https://unpkg.com/blockly/blocks_compressed.js"></script>
+  <script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
+  <script src="https://unpkg.com/blockly/msg/en.js"></script>
+  <!-- Highlight.js for Light Mode Syntax Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/lua.min.js"></script>
+  <!-- Custom Editor CSS -->
+  <link rel="stylesheet" href="css/editor.css">
+</head>
+<body class="h-full flex flex-col overflow-hidden select-none bg-slate-50">
+  <!-- Dynamic Header Component -->
+  <header id="appHeader"></header>
+
+  <!-- Main Workspace & Code Generator View -->
+  <main class="flex-1 flex overflow-hidden relative">
+    <!-- Left Pane: Blockly Interactive Editor Canvas -->
+    <div id="blocklyArea" class="flex-1 h-full relative">
+      <div id="blocklyDiv" class="absolute inset-0"></div>
+    </div>
+
+    <!-- Divider Bar -->
+    <div class="w-1 bg-slate-200 border-x border-slate-300 cursor-col-resize"></div>
+
+    <!-- Right Pane: Real-time Generated Lua Source Code -->
+    <div class="w-[420px] lg:w-[480px] h-full bg-slate-50 flex flex-col border-l border-slate-200 shrink-0">
+      <!-- Code Bar Header -->
+      <div class="h-10 bg-slate-100 border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-600 font-mono">
+        <div class="flex items-center space-x-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse"></span>
+          <span class="text-slate-800 font-medium">main.lua</span>
+          <span class="text-[10px] text-slate-500 uppercase tracking-wider">Generated</span>
+        </div>
+
+        <button onclick="copyCode()" id="copyBtn" class="hover:text-slate-900 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded border border-slate-300 transition flex items-center gap-1 shadow-sm">
+          <svg id="copyIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002 2m0 0h2a2 2 0 002 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+          <span id="copyText">Copy Code</span>
+        </button>
+      </div>
+
+      <!-- Code Output Area -->
+      <div class="flex-1 overflow-auto p-4 bg-white text-slate-800">
+        <pre><code id="codeOutput" class="language-lua text-xs leading-relaxed font-mono">-- Generated Lua Code will appear here</code></pre>
+      </div>
+    </div>
+  </main>
+
+  <!-- Blockly Toolbox Specification XML for Lua -->
+  <xml id="toolbox" style="display: none">
+    <category name="Program & Modules" colour="#0284C7">
+      <block type="lua_require"></block>
+      <block type="lua_print"></block>
+      <block type="lua_function"></block>
+    </category>
+
+    <category name="Tables & Data" colour="#10B981">
+      <block type="lua_declare"></block>
+      <block type="lua_table_create"></block>
+      <block type="lua_number"></block>
+      <block type="lua_string"></block>
+      <block type="lua_nil_boolean"></block>
+      <block type="std_lua_const_nil"></block>
+      <block type="std_lua_const_math_pi"></block>
+      <block type="std_lua_const__version"></block>
+    </category>
+
+    <category name="Control Flow" colour="#F59E0B">
+      <block type="lua_if"></block>
+    </category>
+
+    <category name="Loops" colour="#EC4899">
+      <block type="lua_while"></block>
+      <block type="lua_for_numeric"></block>
+      <block type="lua_for_generic"></block>
+    </category>
+
+    <category name="Jumps & Keywords" colour="#EAB308">
+      <block type="lua_break"></block>
+      <block type="lua_return"></block>
+    </category>
+
+    <category name="Operators" colour="#8B5CF6">
+      <block type="lua_math"></block>
+      <block type="lua_concat"></block>
+      <block type="lua_length"></block>
+    </category>
+
+    <category name="Functions" colour="#8B5CF6" custom="PROCEDURE"></category>
+    <category name="Variables" colour="#10B981" custom="VARIABLE"></category>
+  </xml>
+
+  <!-- Core IDE Utilities and Lua Generator -->
+  <script src="js/core/ide-core.js"></script>
+  <script src="js/generators/lua-generator.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      initIDE(luaLangConfig);
+    });
+  </script>
+</body>
+</html>
