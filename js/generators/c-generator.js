@@ -3,6 +3,8 @@
  */
 
 const CGenerator = new Blockly.Generator('C');
+CGenerator.INDENT = '    ';
+
 
 CGenerator.ORDER_ATOMIC = 0;         // Literals, variable names
 CGenerator.ORDER_UNARY_POSTFIX = 1;  // expr++ expr--
@@ -565,6 +567,366 @@ CGenerator.forBlock['c_logic'] = function(block, generator) {
   const a = generator.valueToCode(block, 'A', order) || '0';
   const b = generator.valueToCode(block, 'B', order) || '0';
   return [`${a} ${op} ${b}`, order];
+};
+
+// c_function_def
+Blockly.Blocks['c_function_def'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ["void", "void"],
+          ["int", "int"],
+          ["double", "double"],
+          ["float", "float"],
+          ["char*", "char*"],
+          ["long", "long"],
+          ["bool", "bool"]
+        ]), "RET_TYPE")
+        .appendField(new Blockly.FieldTextInput("add"), "NAME")
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("int a, int b"), "PARAMS")
+        .appendField(")");
+    this.appendStatementInput("BODY");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Define a C function with parameter types and body.");
+  }
+};
+CGenerator.forBlock['c_function_def'] = function(block, generator) {
+  const retType = block.getFieldValue('RET_TYPE');
+  const name = block.getFieldValue('NAME');
+  const params = block.getFieldValue('PARAMS');
+  const body = generator.statementToCode(block, 'BODY');
+  return `${retType} ${name}(${params}) {\n${body}}\n\n`;
+};
+
+// c_function_call_stmt
+Blockly.Blocks['c_function_call_stmt'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("myFunc"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS")
+        .setCheck(null);
+    this.appendDummyInput()
+        .appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a C function as a statement.");
+  }
+};
+CGenerator.forBlock['c_function_call_stmt'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', CGenerator.ORDER_NONE) || '';
+  return `    ${name}(${args});\n`;
+};
+
+// c_function_call_expr
+Blockly.Blocks['c_function_call_expr'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("add"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS")
+        .setCheck(null);
+    this.appendDummyInput()
+        .appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a C function as an expression returning a value.");
+  }
+};
+CGenerator.forBlock['c_function_call_expr'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', CGenerator.ORDER_NONE) || '';
+  return [`${name}(${args})`, CGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// Standard procedure fallback hooks for CGenerator
+CGenerator.forBlock['procedures_defnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const args = (block.arguments_ || []).map(arg => `int ${arg}`).join(', ');
+  return `void ${funcName}(${args}) {\n${branch}}\n\n`;
+};
+CGenerator.forBlock['procedures_defreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const retVal = generator.valueToCode(block, 'RETURN', CGenerator.ORDER_NONE) || '0';
+  const args = (block.arguments_ || []).map(arg => `int ${arg}`).join(', ');
+  return `int ${funcName}(${args}) {\n${branch}    return ${retVal};\n}\n\n`;
+};
+CGenerator.forBlock['procedures_callnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, CGenerator.ORDER_NONE) || '0';
+  }
+  return `    ${funcName}(${args.join(', ')});\n`;
+};
+CGenerator.forBlock['procedures_callreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, CGenerator.ORDER_NONE) || '0';
+  }
+  return [`${funcName}(${args.join(', ')})`, CGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// c_array_decl
+Blockly.Blocks['c_array_decl'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ["int", "int"],
+          ["float", "float"],
+          ["double", "double"],
+          ["char", "char"]
+        ]), "TYPE")
+        .appendField(new Blockly.FieldTextInput("arr"), "NAME")
+        .appendField("[")
+        .appendField(new Blockly.FieldTextInput("10"), "SIZE")
+        .appendField("]");
+    this.appendValueInput("INIT")
+        .setCheck(null)
+        .appendField("= {");
+    this.appendDummyInput().appendField("};");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Declare array with optional initialization list.");
+  }
+};
+CGenerator.forBlock['c_array_decl'] = function(block, generator) {
+  const type = block.getFieldValue('TYPE');
+  const name = block.getFieldValue('NAME');
+  const size = block.getFieldValue('SIZE');
+  const init = generator.valueToCode(block, 'INIT', CGenerator.ORDER_NONE);
+  if (init) {
+    return `    ${type} ${name}[${size}] = { ${init} };\n`;
+  }
+  return `    ${type} ${name}[${size}];\n`;
+};
+
+// c_array_get
+Blockly.Blocks['c_array_get'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("arr"), "NAME")
+        .appendField("[");
+    this.appendValueInput("INDEX").setCheck(null);
+    this.appendDummyInput().appendField("]");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Get array element at specified index.");
+  }
+};
+CGenerator.forBlock['c_array_get'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const idx = generator.valueToCode(block, 'INDEX', CGenerator.ORDER_NONE) || '0';
+  return [`${name}[${idx}]`, CGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// c_array_set
+Blockly.Blocks['c_array_set'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("arr"), "NAME")
+        .appendField("[");
+    this.appendValueInput("INDEX").setCheck(null);
+    this.appendDummyInput().appendField("] =");
+    this.appendValueInput("VALUE").setCheck(null);
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Assign value to array element at index.");
+  }
+};
+CGenerator.forBlock['c_array_set'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const idx = generator.valueToCode(block, 'INDEX', CGenerator.ORDER_NONE) || '0';
+  const val = generator.valueToCode(block, 'VALUE', CGenerator.ORDER_ASSIGNMENT) || '0';
+  return `    ${name}[${idx}] = ${val};\n`;
+};
+
+// c_pointer_decl
+Blockly.Blocks['c_pointer_decl'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ["int*", "int*"],
+          ["char*", "char*"],
+          ["float*", "float*"],
+          ["double*", "double*"],
+          ["void*", "void*"]
+        ]), "TYPE")
+        .appendField(new Blockly.FieldTextInput("ptr"), "NAME");
+    this.appendValueInput("VALUE")
+        .setCheck(null)
+        .appendField("=");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Declare a pointer variable.");
+  }
+};
+CGenerator.forBlock['c_pointer_decl'] = function(block, generator) {
+  const type = block.getFieldValue('TYPE');
+  const name = block.getFieldValue('NAME');
+  const val = generator.valueToCode(block, 'VALUE', CGenerator.ORDER_ASSIGNMENT);
+  return val ? `    ${type} ${name} = ${val};\n` : `    ${type} ${name} = NULL;\n`;
+};
+
+// c_pointer_deref
+Blockly.Blocks['c_pointer_deref'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("*")
+        .appendField(new Blockly.FieldTextInput("ptr"), "NAME");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Dereference a pointer (*ptr).");
+  }
+};
+CGenerator.forBlock['c_pointer_deref'] = function(block) {
+  const name = block.getFieldValue('NAME');
+  return [`*${name}`, CGenerator.ORDER_UNARY_PREFIX];
+};
+
+// c_address_of
+Blockly.Blocks['c_address_of'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("&")
+        .appendField(new Blockly.FieldTextInput("var"), "NAME");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Address-of operator (&var).");
+  }
+};
+CGenerator.forBlock['c_address_of'] = function(block) {
+  const name = block.getFieldValue('NAME');
+  return [`&${name}`, CGenerator.ORDER_UNARY_PREFIX];
+};
+
+// c_malloc_free
+Blockly.Blocks['c_malloc_free'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ["malloc", "malloc"],
+          ["free", "free"]
+        ]), "ACTION")
+        .appendField("(");
+    this.appendValueInput("ARG").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Dynamic memory allocation malloc() or free().");
+  }
+};
+CGenerator.forBlock['c_malloc_free'] = function(block, generator) {
+  const action = block.getFieldValue('ACTION');
+  const arg = generator.valueToCode(block, 'ARG', CGenerator.ORDER_NONE) || '10 * sizeof(int)';
+  return [`${action}(${arg})`, CGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// c_struct_def
+Blockly.Blocks['c_struct_def'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("struct")
+        .appendField(new Blockly.FieldTextInput("Point"), "NAME")
+        .appendField("{");
+    this.appendStatementInput("FIELDS");
+    this.appendDummyInput().appendField("};");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#3B82F6");
+    this.setTooltip("Define a C struct with member fields.");
+  }
+};
+CGenerator.forBlock['c_struct_def'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const fields = generator.statementToCode(block, 'FIELDS');
+  return `struct ${name} {\n${fields}};\n\n`;
+};
+
+// c_struct_get_set
+Blockly.Blocks['c_struct_get_set'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("p"), "VAR")
+        .appendField(new Blockly.FieldDropdown([
+          [".", "."],
+          ["->", "->"]
+        ]), "OP")
+        .appendField(new Blockly.FieldTextInput("x"), "FIELD");
+    this.appendValueInput("VALUE")
+        .setCheck(null)
+        .appendField("=");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#3B82F6");
+    this.setTooltip("Set field value of a struct or struct pointer.");
+  }
+};
+CGenerator.forBlock['c_struct_get_set'] = function(block, generator) {
+  const v = block.getFieldValue('VAR');
+  const op = block.getFieldValue('OP');
+  const f = block.getFieldValue('FIELD');
+  const val = generator.valueToCode(block, 'VALUE', CGenerator.ORDER_ASSIGNMENT);
+  if (val) {
+    return `    ${v}${op}${f} = ${val};\n`;
+  }
+  return `    ${v}${op}${f};\n`;
+};
+
+// c_struct_field_get
+Blockly.Blocks['c_struct_field_get'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("p"), "VAR")
+        .appendField(new Blockly.FieldDropdown([
+          [".", "."],
+          ["->", "->"]
+        ]), "OP")
+        .appendField(new Blockly.FieldTextInput("x"), "FIELD");
+    this.setOutput(true, null);
+    this.setColour("#3B82F6");
+    this.setTooltip("Get field value of a struct or struct pointer.");
+  }
+};
+CGenerator.forBlock['c_struct_field_get'] = function(block) {
+  const v = block.getFieldValue('VAR');
+  const op = block.getFieldValue('OP');
+  const f = block.getFieldValue('FIELD');
+  return [`${v}${op}${f}`, CGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// c_scanf
+Blockly.Blocks['c_scanf'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField('scanf("')
+        .appendField(new Blockly.FieldTextInput("%d"), "FMT")
+        .appendField('", &')
+        .appendField(new Blockly.FieldTextInput("var"), "VAR")
+        .appendField(');');
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#4C97FF");
+    this.setTooltip("Read input from console into variable using scanf.");
+  }
+};
+CGenerator.forBlock['c_scanf'] = function(block) {
+  const fmt = block.getFieldValue('FMT');
+  const v = block.getFieldValue('VAR');
+  return `    scanf("${fmt}", &${v});\n`;
 };
 
 // Standard Library Constants

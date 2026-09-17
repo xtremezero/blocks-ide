@@ -3,6 +3,8 @@
  */
 
 const HaxeGenerator = new Blockly.Generator('Haxe');
+HaxeGenerator.INDENT = '    ';
+
 
 HaxeGenerator.ORDER_ATOMIC = 0;         // Literals, variable names
 HaxeGenerator.ORDER_UNARY_POSTFIX = 1;  // expr++ expr--
@@ -393,6 +395,331 @@ HaxeGenerator.forBlock['haxe_array_comprehension'] = function(block) {
   const range = block.getFieldValue('RANGE');
   const expr = block.getFieldValue('EXPR');
   return [`[for (${v} in ${range}) ${expr}]`, HaxeGenerator.ORDER_ATOMIC];
+};
+
+// haxe_function_def
+Blockly.Blocks['haxe_function_def'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ["public function", "public function"],
+          ["private function", "private function"],
+          ["public static function", "public static function"],
+          ["override public function", "override public function"],
+          ["inline function", "inline function"]
+        ]), "SCOPE")
+        .appendField(new Blockly.FieldTextInput("calculate"), "NAME")
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("a: Int, b: Int"), "PARAMS")
+        .appendField("):")
+        .appendField(new Blockly.FieldDropdown([
+          ["Void", ":Void"],
+          ["Int", ":Int"],
+          ["Float", ":Float"],
+          ["String", ":String"],
+          ["Bool", ":Bool"],
+          ["Dynamic", ":Dynamic"]
+        ]), "RET");
+    this.appendStatementInput("BODY");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Define a Haxe function or class method.");
+  }
+};
+HaxeGenerator.forBlock['haxe_function_def'] = function(block, generator) {
+  const scope = block.getFieldValue('SCOPE');
+  const name = block.getFieldValue('NAME');
+  const params = block.getFieldValue('PARAMS');
+  const ret = block.getFieldValue('RET');
+  const body = generator.statementToCode(block, 'BODY');
+  return `        ${scope} ${name}(${params})${ret} {\n${body}        }\n\n`;
+};
+
+// haxe_function_call_stmt
+Blockly.Blocks['haxe_function_call_stmt'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("myFunc"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a Haxe function as a statement.");
+  }
+};
+HaxeGenerator.forBlock['haxe_function_call_stmt'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', HaxeGenerator.ORDER_NONE) || '';
+  return `        ${name}(${args});\n`;
+};
+
+// haxe_function_call_expr
+Blockly.Blocks['haxe_function_call_expr'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("calculate"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a Haxe function as an expression.");
+  }
+};
+HaxeGenerator.forBlock['haxe_function_call_expr'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', HaxeGenerator.ORDER_NONE) || '';
+  return [`${name}(${args})`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// Standard procedure fallback hooks for HaxeGenerator
+HaxeGenerator.forBlock['procedures_defnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const args = (block.arguments_ || []).map(arg => `${arg}: Dynamic`).join(', ');
+  return `        public function ${funcName}(${args}):Void {\n${branch}        }\n\n`;
+};
+HaxeGenerator.forBlock['procedures_defreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const retVal = generator.valueToCode(block, 'RETURN', HaxeGenerator.ORDER_NONE) || 'null';
+  const args = (block.arguments_ || []).map(arg => `${arg}: Dynamic`).join(', ');
+  return `        public function ${funcName}(${args}):Dynamic {\n${branch}        return ${retVal};\n        }\n\n`;
+};
+HaxeGenerator.forBlock['procedures_callnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, HaxeGenerator.ORDER_NONE) || 'null';
+  }
+  return `        ${funcName}(${args.join(', ')});\n`;
+};
+HaxeGenerator.forBlock['procedures_callreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, HaxeGenerator.ORDER_NONE) || 'null';
+  }
+  return [`${funcName}(${args.join(', ')})`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// haxe_anonymous_func
+Blockly.Blocks['haxe_anonymous_func'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("x, y"), "PARAMS")
+        .appendField(") ->");
+    this.appendValueInput("EXPR").setCheck(null);
+    this.setOutput(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Haxe lambda / arrow function expression.");
+  }
+};
+HaxeGenerator.forBlock['haxe_anonymous_func'] = function(block, generator) {
+  const params = block.getFieldValue('PARAMS');
+  const expr = generator.valueToCode(block, 'EXPR', HaxeGenerator.ORDER_NONE) || '0';
+  return [`(${params}) -> ${expr}`, HaxeGenerator.ORDER_ATOMIC];
+};
+
+// haxe_constructor
+Blockly.Blocks['haxe_constructor'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("public function new(")
+        .appendField(new Blockly.FieldTextInput("name: String"), "PARAMS")
+        .appendField(")");
+    this.appendStatementInput("BODY");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#F97316");
+    this.setTooltip("Haxe class constructor definition.");
+  }
+};
+HaxeGenerator.forBlock['haxe_constructor'] = function(block, generator) {
+  const params = block.getFieldValue('PARAMS');
+  const body = generator.statementToCode(block, 'BODY');
+  return `        public function new(${params}) {\n${body}        }\n`;
+};
+
+// haxe_instantiate
+Blockly.Blocks['haxe_instantiate'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("new")
+        .appendField(new Blockly.FieldTextInput("MyClass"), "CLASS")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#F97316");
+    this.setTooltip("Instantiate a Haxe class with new MyClass().");
+  }
+};
+HaxeGenerator.forBlock['haxe_instantiate'] = function(block, generator) {
+  const cls = block.getFieldValue('CLASS');
+  const args = generator.valueToCode(block, 'ARGS', HaxeGenerator.ORDER_NONE) || '';
+  return [`new ${cls}(${args})`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// haxe_property_access
+Blockly.Blocks['haxe_property_access'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("obj"), "OBJ")
+        .appendField(".")
+        .appendField(new Blockly.FieldTextInput("field"), "FIELD");
+    this.setOutput(true, null);
+    this.setColour("#F97316");
+    this.setTooltip("Access Haxe object property or call method.");
+  }
+};
+HaxeGenerator.forBlock['haxe_property_access'] = function(block) {
+  const obj = block.getFieldValue('OBJ');
+  const field = block.getFieldValue('FIELD');
+  return [`${obj}.${field}`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// haxe_array_create
+Blockly.Blocks['haxe_array_create'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("[")
+        .appendField(new Blockly.FieldTextInput("1, 2, 3, 4"), "ITEMS")
+        .appendField("]");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Create a Haxe Array literal.");
+  }
+};
+HaxeGenerator.forBlock['haxe_array_create'] = function(block) {
+  const items = block.getFieldValue('ITEMS');
+  return [`[${items}]`, HaxeGenerator.ORDER_ATOMIC];
+};
+
+// haxe_array_get_set
+Blockly.Blocks['haxe_array_get_set'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("arr"), "NAME")
+        .appendField("[");
+    this.appendValueInput("INDEX").setCheck(null);
+    this.appendDummyInput().appendField("]");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Access Haxe Array element at index.");
+  }
+};
+HaxeGenerator.forBlock['haxe_array_get_set'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const idx = generator.valueToCode(block, 'INDEX', HaxeGenerator.ORDER_NONE) || '0';
+  return [`${name}[${idx}]`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// haxe_array_push
+Blockly.Blocks['haxe_array_push'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("arr"), "NAME")
+        .appendField(".push(");
+    this.appendValueInput("VAL").setCheck(null);
+    this.appendDummyInput().appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Push an element to Haxe Array.");
+  }
+};
+HaxeGenerator.forBlock['haxe_array_push'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const val = generator.valueToCode(block, 'VAL', HaxeGenerator.ORDER_NONE) || 'null';
+  return `        ${name}.push(${val});\n`;
+};
+
+// haxe_array_length
+Blockly.Blocks['haxe_array_length'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("arr"), "NAME")
+        .appendField(".length");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Get Haxe Array length.");
+  }
+};
+HaxeGenerator.forBlock['haxe_array_length'] = function(block) {
+  const name = block.getFieldValue('NAME');
+  return [`${name}.length`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// haxe_map_create
+Blockly.Blocks['haxe_map_create'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("[")
+        .appendField(new Blockly.FieldTextInput('"key" => "value"'), "PAIRS")
+        .appendField("]");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Create a Haxe Map literal.");
+  }
+};
+HaxeGenerator.forBlock['haxe_map_create'] = function(block) {
+  const pairs = block.getFieldValue('PAIRS');
+  return [`[ ${pairs} ]`, HaxeGenerator.ORDER_ATOMIC];
+};
+
+// haxe_map_get_set
+Blockly.Blocks['haxe_map_get_set'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("map"), "NAME")
+        .appendField(".")
+        .appendField(new Blockly.FieldDropdown([
+          ["get", "get"],
+          ["set", "set"],
+          ["exists", "exists"]
+        ]), "ACTION")
+        .appendField("(");
+    this.appendValueInput("KEY").setCheck(null);
+    this.appendValueInput("VAL").setCheck(null).appendField(",");
+    this.appendDummyInput().appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Map method call (get, set, exists).");
+  }
+};
+HaxeGenerator.forBlock['haxe_map_get_set'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const action = block.getFieldValue('ACTION');
+  const key = generator.valueToCode(block, 'KEY', HaxeGenerator.ORDER_NONE) || '"key"';
+  const val = generator.valueToCode(block, 'VAL', HaxeGenerator.ORDER_NONE);
+  if (action === 'set' && val) {
+    return [`${name}.set(${key}, ${val})`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+  }
+  return [`${name}.${action}(${key})`, HaxeGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// haxe_structure_literal
+Blockly.Blocks['haxe_structure_literal'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("{")
+        .appendField(new Blockly.FieldTextInput('name: "Haxe", version: 4'), "FIELDS")
+        .appendField("}");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Create an anonymous structure object literal.");
+  }
+};
+HaxeGenerator.forBlock['haxe_structure_literal'] = function(block) {
+  const fields = block.getFieldValue('FIELDS');
+  return [`{ ${fields} }`, HaxeGenerator.ORDER_ATOMIC];
 };
 
 // Haxe Standard Constants

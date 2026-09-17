@@ -3,6 +3,8 @@
  */
 
 const LuaGenerator = new Blockly.Generator('Lua');
+LuaGenerator.INDENT = '    ';
+
 
 LuaGenerator.ORDER_ATOMIC = 0;          // Literals, variable names
 LuaGenerator.ORDER_HIGH = 1;            // Function calls, table indexing
@@ -377,6 +379,250 @@ Blockly.Blocks['lua_length'] = {
 LuaGenerator.forBlock['lua_length'] = function(block, generator) {
   const val = generator.valueToCode(block, 'VAL', LuaGenerator.ORDER_UNARY) || 'tbl';
   return [`#${val}`, LuaGenerator.ORDER_UNARY];
+};
+
+// lua_function_call_stmt
+Blockly.Blocks['lua_function_call_stmt'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("greet"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a Lua function as a statement.");
+  }
+};
+LuaGenerator.forBlock['lua_function_call_stmt'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', LuaGenerator.ORDER_NONE) || '';
+  return `${name}(${args})\n`;
+};
+
+// lua_function_call_expr
+Blockly.Blocks['lua_function_call_expr'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("add"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a Lua function as an expression.");
+  }
+};
+LuaGenerator.forBlock['lua_function_call_expr'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', LuaGenerator.ORDER_NONE) || '';
+  return [`${name}(${args})`, LuaGenerator.ORDER_HIGH];
+};
+
+// Standard procedure fallback hooks for LuaGenerator
+LuaGenerator.forBlock['procedures_defnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const args = (block.arguments_ || []).join(', ');
+  return `function ${funcName}(${args})\n${branch}end\n\n`;
+};
+LuaGenerator.forBlock['procedures_defreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const retVal = generator.valueToCode(block, 'RETURN', LuaGenerator.ORDER_NONE) || 'nil';
+  const args = (block.arguments_ || []).join(', ');
+  return `function ${funcName}(${args})\n${branch}    return ${retVal}\nend\n\n`;
+};
+LuaGenerator.forBlock['procedures_callnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, LuaGenerator.ORDER_NONE) || 'nil';
+  }
+  return `${funcName}(${args.join(', ')})\n`;
+};
+LuaGenerator.forBlock['procedures_callreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, LuaGenerator.ORDER_NONE) || 'nil';
+  }
+  return [`${funcName}(${args.join(', ')})`, LuaGenerator.ORDER_HIGH];
+};
+
+// lua_array_create
+Blockly.Blocks['lua_array_create'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("{")
+        .appendField(new Blockly.FieldTextInput("10, 20, 30, 40"), "ITEMS")
+        .appendField("}");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Create a Lua sequence array literal.");
+  }
+};
+LuaGenerator.forBlock['lua_array_create'] = function(block) {
+  const items = block.getFieldValue('ITEMS');
+  return [`{ ${items} }`, LuaGenerator.ORDER_ATOMIC];
+};
+
+// lua_table_dict_create
+Blockly.Blocks['lua_table_dict_create'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("{")
+        .appendField(new Blockly.FieldTextInput('name = "Hero", hp = 100, level = 1'), "FIELDS")
+        .appendField("}");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Create a Lua key-value table dictionary literal.");
+  }
+};
+LuaGenerator.forBlock['lua_table_dict_create'] = function(block) {
+  const fields = block.getFieldValue('FIELDS');
+  return [`{ ${fields} }`, LuaGenerator.ORDER_ATOMIC];
+};
+
+// lua_table_get
+Blockly.Blocks['lua_table_get'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("t"), "TABLE")
+        .appendField("[");
+    this.appendValueInput("KEY").setCheck(null);
+    this.appendDummyInput().appendField("]");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Get table element or key value t[key].");
+  }
+};
+LuaGenerator.forBlock['lua_table_get'] = function(block, generator) {
+  const tbl = block.getFieldValue('TABLE');
+  const key = generator.valueToCode(block, 'KEY', LuaGenerator.ORDER_NONE) || '1';
+  return [`${tbl}[${key}]`, LuaGenerator.ORDER_HIGH];
+};
+
+// lua_table_set
+Blockly.Blocks['lua_table_set'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("t"), "TABLE")
+        .appendField("[");
+    this.appendValueInput("KEY").setCheck(null);
+    this.appendDummyInput().appendField("] =");
+    this.appendValueInput("VALUE").setCheck(null);
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Assign value to table key or index t[key] = val.");
+  }
+};
+LuaGenerator.forBlock['lua_table_set'] = function(block, generator) {
+  const tbl = block.getFieldValue('TABLE');
+  const key = generator.valueToCode(block, 'KEY', LuaGenerator.ORDER_NONE) || '1';
+  const val = generator.valueToCode(block, 'VALUE', LuaGenerator.ORDER_NONE) || 'nil';
+  return `${tbl}[${key}] = ${val}\n`;
+};
+
+// lua_table_insert_remove
+Blockly.Blocks['lua_table_insert_remove'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("table.")
+        .appendField(new Blockly.FieldDropdown([
+          ["insert", "insert"],
+          ["remove", "remove"]
+        ]), "ACTION")
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("tbl"), "TABLE");
+    this.appendValueInput("ARG").setCheck(null).appendField(",");
+    this.appendDummyInput().appendField(")");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Perform table.insert(tbl, val) or table.remove(tbl, pos).");
+  }
+};
+LuaGenerator.forBlock['lua_table_insert_remove'] = function(block, generator) {
+  const action = block.getFieldValue('ACTION');
+  const tbl = block.getFieldValue('TABLE');
+  const arg = generator.valueToCode(block, 'ARG', LuaGenerator.ORDER_NONE) || 'val';
+  return `table.${action}(${tbl}, ${arg})\n`;
+};
+
+// lua_method_def
+Blockly.Blocks['lua_method_def'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("function")
+        .appendField(new Blockly.FieldTextInput("Player"), "CLASS")
+        .appendField(":")
+        .appendField(new Blockly.FieldTextInput("takeDamage"), "METHOD")
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("amount"), "PARAMS")
+        .appendField(")");
+    this.appendStatementInput("BODY");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#0284C7");
+    this.setTooltip("Define a Lua colon-syntax method (implicit self).");
+  }
+};
+LuaGenerator.forBlock['lua_method_def'] = function(block, generator) {
+  const cls = block.getFieldValue('CLASS');
+  const method = block.getFieldValue('METHOD');
+  const params = block.getFieldValue('PARAMS');
+  const body = generator.statementToCode(block, 'BODY');
+  return `function ${cls}:${method}(${params})\n${body}end\n\n`;
+};
+
+// lua_method_call
+Blockly.Blocks['lua_method_call'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("player"), "OBJ")
+        .appendField(":")
+        .appendField(new Blockly.FieldTextInput("takeDamage"), "METHOD")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#0284C7");
+    this.setTooltip("Invoke a Lua method with colon syntax obj:method(args).");
+  }
+};
+LuaGenerator.forBlock['lua_method_call'] = function(block, generator) {
+  const obj = block.getFieldValue('OBJ');
+  const method = block.getFieldValue('METHOD');
+  const args = generator.valueToCode(block, 'ARGS', LuaGenerator.ORDER_NONE) || '';
+  return `${obj}:${method}(${args})\n`;
+};
+
+// lua_class_def
+Blockly.Blocks['lua_class_def'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("local")
+        .appendField(new Blockly.FieldTextInput("Player"), "NAME")
+        .appendField("= {}");
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("Player"), "NAME2")
+        .appendField(".__index =")
+        .appendField(new Blockly.FieldTextInput("Player"), "NAME3");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#0284C7");
+    this.setTooltip("Define a Lua OOP Prototype class setup.");
+  }
+};
+LuaGenerator.forBlock['lua_class_def'] = function(block) {
+  const name = block.getFieldValue('NAME');
+  return `local ${name} = {}\n${name}.__index = ${name}\n\n`;
 };
 
 // Standard Constants

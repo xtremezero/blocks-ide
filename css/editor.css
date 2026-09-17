@@ -1,15 +1,20 @@
-/* Global Styles & Font Definitions (Light Mode) */
+/* Global Styles & Font Definitions */
 body {
   font-family: 'Inter', sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
 }
 
+html.dark body {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
 code, pre {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Blockly Light Theme Customizations */
+/* Blockly Customizations (Light Theme) */
 .blocklyTreeLabel {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
@@ -30,20 +35,69 @@ code, pre {
   stroke: none !important;
 }
 
-/* Custom Scrollbar Styling (Light Mode) */
+/* Blockly Customizations (Dark Theme Overrides) */
+html.dark .blocklyTreeLabel {
+  color: #cbd5e1 !important;
+}
+
+html.dark .blocklyToolboxDiv {
+  background-color: #1e293b !important;
+  border-right: 1px solid #334155 !important;
+}
+
+html.dark .blocklyFlyoutBackground {
+  fill: #0f172a !important;
+  fill-opacity: 0.95 !important;
+}
+
+html.dark .blocklyFlyoutLabelText {
+  fill: #f8fafc !important;
+}
+
+html.dark .blocklyText {
+  fill: #ffffff !important;
+}
+
+/* Custom Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Splitter & Drag Handles */
+#dragDivider {
+  user-select: none;
+  touch-action: none;
+}
+
+/* Code Output Box Styling */
+#codeOutput {
+  background: transparent !important;
 }
 
 /* Navigation Language Tabs */

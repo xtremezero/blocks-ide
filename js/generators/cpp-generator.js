@@ -3,6 +3,8 @@
  */
 
 const CPPGenerator = new Blockly.Generator('CPP');
+CPPGenerator.INDENT = '    ';
+
 
 CPPGenerator.ORDER_ATOMIC = 0;         // Literals, variable names
 CPPGenerator.ORDER_UNARY_POSTFIX = 1;  // expr++ expr--
@@ -478,6 +480,348 @@ CPPGenerator.forBlock['cpp_lambda'] = function(block, generator) {
   const params = block.getFieldValue('PARAMS');
   const body = generator.statementToCode(block, 'BODY');
   return [`[${capture}](${params}) {\n${body}}`, CPPGenerator.ORDER_ATOMIC];
+};
+
+// cpp_function_def
+Blockly.Blocks['cpp_function_def'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldDropdown([
+          ["void", "void"],
+          ["int", "int"],
+          ["double", "double"],
+          ["std::string", "std::string"],
+          ["bool", "bool"],
+          ["auto", "auto"]
+        ]), "RET_TYPE")
+        .appendField(new Blockly.FieldTextInput("multiply"), "NAME")
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("int a, int b"), "PARAMS")
+        .appendField(")");
+    this.appendStatementInput("BODY");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Define a C++ standalone or member function.");
+  }
+};
+CPPGenerator.forBlock['cpp_function_def'] = function(block, generator) {
+  const retType = block.getFieldValue('RET_TYPE');
+  const name = block.getFieldValue('NAME');
+  const params = block.getFieldValue('PARAMS');
+  const body = generator.statementToCode(block, 'BODY');
+  return `${retType} ${name}(${params}) {\n${body}}\n\n`;
+};
+
+// cpp_function_call_stmt
+Blockly.Blocks['cpp_function_call_stmt'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("printMessage"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a C++ function as a statement.");
+  }
+};
+CPPGenerator.forBlock['cpp_function_call_stmt'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', CPPGenerator.ORDER_NONE) || '';
+  return `    ${name}(${args});\n`;
+};
+
+// cpp_function_call_expr
+Blockly.Blocks['cpp_function_call_expr'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("multiply"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(")");
+    this.setOutput(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip("Call a C++ function as an expression.");
+  }
+};
+CPPGenerator.forBlock['cpp_function_call_expr'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', CPPGenerator.ORDER_NONE) || '';
+  return [`${name}(${args})`, CPPGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// Standard procedure fallback hooks for CPPGenerator
+CPPGenerator.forBlock['procedures_defnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const args = (block.arguments_ || []).map(arg => `auto ${arg}`).join(', ');
+  return `void ${funcName}(${args}) {\n${branch}}\n\n`;
+};
+CPPGenerator.forBlock['procedures_defreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const branch = generator.statementToCode(block, 'STACK');
+  const retVal = generator.valueToCode(block, 'RETURN', CPPGenerator.ORDER_NONE) || '0';
+  const args = (block.arguments_ || []).map(arg => `auto ${arg}`).join(', ');
+  return `auto ${funcName}(${args}) {\n${branch}    return ${retVal};\n}\n\n`;
+};
+CPPGenerator.forBlock['procedures_callnoreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, CPPGenerator.ORDER_NONE) || '0';
+  }
+  return `    ${funcName}(${args.join(', ')});\n`;
+};
+CPPGenerator.forBlock['procedures_callreturn'] = function(block, generator) {
+  const funcName = block.getFieldValue('NAME');
+  const args = [];
+  const variables = block.arguments_ || [];
+  for (let i = 0; i < variables.length; i++) {
+    args[i] = generator.valueToCode(block, 'ARG' + i, CPPGenerator.ORDER_NONE) || '0';
+  }
+  return [`${funcName}(${args.join(', ')})`, CPPGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// cpp_constructor
+Blockly.Blocks['cpp_constructor'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("Player"), "CLASS")
+        .appendField("(")
+        .appendField(new Blockly.FieldTextInput("std::string name, int hp"), "PARAMS")
+        .appendField(")");
+    this.appendStatementInput("BODY");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("C++ Class Constructor definition.");
+  }
+};
+CPPGenerator.forBlock['cpp_constructor'] = function(block, generator) {
+  const cls = block.getFieldValue('CLASS');
+  const params = block.getFieldValue('PARAMS');
+  const body = generator.statementToCode(block, 'BODY');
+  return `    ${cls}(${params}) {\n${body}    }\n`;
+};
+
+// cpp_class_instantiate
+Blockly.Blocks['cpp_class_instantiate'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("Player"), "TYPE")
+        .appendField(new Blockly.FieldTextInput("player1"), "NAME")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Instantiate a C++ class object.");
+  }
+};
+CPPGenerator.forBlock['cpp_class_instantiate'] = function(block, generator) {
+  const type = block.getFieldValue('TYPE');
+  const name = block.getFieldValue('NAME');
+  const args = generator.valueToCode(block, 'ARGS', CPPGenerator.ORDER_NONE) || '';
+  return `    ${type} ${name}(${args});\n`;
+};
+
+// cpp_method_call
+Blockly.Blocks['cpp_method_call'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("player1"), "OBJ")
+        .appendField(new Blockly.FieldDropdown([
+          [".", "."],
+          ["->", "->"]
+        ]), "OP")
+        .appendField(new Blockly.FieldTextInput("takeDamage"), "METHOD")
+        .appendField("(");
+    this.appendValueInput("ARGS").setCheck(null);
+    this.appendDummyInput().appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Invoke a method on a C++ object or pointer.");
+  }
+};
+CPPGenerator.forBlock['cpp_method_call'] = function(block, generator) {
+  const obj = block.getFieldValue('OBJ');
+  const op = block.getFieldValue('OP');
+  const method = block.getFieldValue('METHOD');
+  const args = generator.valueToCode(block, 'ARGS', CPPGenerator.ORDER_NONE) || '';
+  return `    ${obj}${op}${method}(${args});\n`;
+};
+
+// cpp_member_access
+Blockly.Blocks['cpp_member_access'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("obj"), "OBJ")
+        .appendField(new Blockly.FieldDropdown([
+          [".", "."],
+          ["->", "->"]
+        ]), "OP")
+        .appendField(new Blockly.FieldTextInput("field"), "FIELD");
+    this.setOutput(true, null);
+    this.setColour("#10B981");
+    this.setTooltip("Access member variable of a C++ object or pointer.");
+  }
+};
+CPPGenerator.forBlock['cpp_member_access'] = function(block) {
+  const obj = block.getFieldValue('OBJ');
+  const op = block.getFieldValue('OP');
+  const field = block.getFieldValue('FIELD');
+  return [`${obj}${op}${field}`, CPPGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// cpp_vector_create
+Blockly.Blocks['cpp_vector_create'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("std::vector<")
+        .appendField(new Blockly.FieldDropdown([
+          ["int", "int"],
+          ["double", "double"],
+          ["std::string", "std::string"],
+          ["float", "float"]
+        ]), "TYPE")
+        .appendField(">")
+        .appendField(new Blockly.FieldTextInput("vec"), "NAME");
+    this.appendValueInput("INIT")
+        .setCheck(null)
+        .appendField("= {");
+    this.appendDummyInput().appendField("};");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#06B6D4");
+    this.setTooltip("Declare std::vector with optional initializer.");
+  }
+};
+CPPGenerator.forBlock['cpp_vector_create'] = function(block, generator) {
+  const type = block.getFieldValue('TYPE');
+  const name = block.getFieldValue('NAME');
+  const init = generator.valueToCode(block, 'INIT', CPPGenerator.ORDER_NONE);
+  if (init) {
+    return `    std::vector<${type}> ${name} = { ${init} };\n`;
+  }
+  return `    std::vector<${type}> ${name};\n`;
+};
+
+// cpp_vector_push_pop
+Blockly.Blocks['cpp_vector_push_pop'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("vec"), "NAME")
+        .appendField(".")
+        .appendField(new Blockly.FieldDropdown([
+          ["push_back", "push_back"],
+          ["pop_back", "pop_back"]
+        ]), "ACTION")
+        .appendField("(");
+    this.appendValueInput("VAL").setCheck(null);
+    this.appendDummyInput().appendField(");");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#06B6D4");
+    this.setTooltip("Vector push_back or pop_back operation.");
+  }
+};
+CPPGenerator.forBlock['cpp_vector_push_pop'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const action = block.getFieldValue('ACTION');
+  const val = generator.valueToCode(block, 'VAL', CPPGenerator.ORDER_NONE);
+  if (action === 'push_back' && val) {
+    return `    ${name}.push_back(${val});\n`;
+  }
+  return `    ${name}.${action}();\n`;
+};
+
+// cpp_vector_get_set
+Blockly.Blocks['cpp_vector_get_set'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("vec"), "NAME")
+        .appendField("[");
+    this.appendValueInput("INDEX").setCheck(null);
+    this.appendDummyInput().appendField("]");
+    this.setOutput(true, null);
+    this.setColour("#06B6D4");
+    this.setTooltip("Access std::vector element at index.");
+  }
+};
+CPPGenerator.forBlock['cpp_vector_get_set'] = function(block, generator) {
+  const name = block.getFieldValue('NAME');
+  const idx = generator.valueToCode(block, 'INDEX', CPPGenerator.ORDER_NONE) || '0';
+  return [`${name}[${idx}]`, CPPGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// cpp_vector_size
+Blockly.Blocks['cpp_vector_size'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput("vec"), "NAME")
+        .appendField(".size()");
+    this.setOutput(true, null);
+    this.setColour("#06B6D4");
+    this.setTooltip("Get std::vector size.");
+  }
+};
+CPPGenerator.forBlock['cpp_vector_size'] = function(block) {
+  const name = block.getFieldValue('NAME');
+  return [`${name}.size()`, CPPGenerator.ORDER_UNARY_POSTFIX];
+};
+
+// cpp_map_create
+Blockly.Blocks['cpp_map_create'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("std::map<")
+        .appendField(new Blockly.FieldDropdown([
+          ["std::string", "std::string"],
+          ["int", "int"]
+        ]), "KEY_TYPE")
+        .appendField(",")
+        .appendField(new Blockly.FieldDropdown([
+          ["int", "int"],
+          ["double", "double"],
+          ["std::string", "std::string"]
+        ]), "VAL_TYPE")
+        .appendField(">")
+        .appendField(new Blockly.FieldTextInput("myMap"), "NAME")
+        .appendField(";");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#06B6D4");
+    this.setTooltip("Declare std::map container.");
+  }
+};
+CPPGenerator.forBlock['cpp_map_create'] = function(block) {
+  const k = block.getFieldValue('KEY_TYPE');
+  const v = block.getFieldValue('VAL_TYPE');
+  const name = block.getFieldValue('NAME');
+  return `    std::map<${k}, ${v}> ${name};\n`;
+};
+
+// cpp_cin
+Blockly.Blocks['cpp_cin'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("std::cin >>")
+        .appendField(new Blockly.FieldTextInput("varName"), "NAME")
+        .appendField(";");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour("#06B6D4");
+    this.setTooltip("Read input from console into variable using std::cin.");
+  }
+};
+CPPGenerator.forBlock['cpp_cin'] = function(block) {
+  const name = block.getFieldValue('NAME');
+  return `    std::cin >> ${name};\n`;
 };
 
 // Standard Constants
